@@ -7,3 +7,7 @@
 - 초기 묶음은 13문항이고 장기 학습 분량과 N3 전체 난이도·합격 예측은 검증하지 않는다.
 
 최종 실행 결과: 13개 테스트, 실패·오류 0; debug APK 생성 성공. lint 오류 0, 경고 2(최신 target API 권고, Uri.parse 대신 KTX 권고). 최종 APK의 실행과 테스트 풀이 기록 복원도 확인했다.
+
+## 런처 이름·아이콘 변경
+
+앱 표시 이름을 ‘하루 N3’로 바꾸고 책 모양 vector/adaptive 아이콘과 테마용 monochrome 아이콘을 추가했다. `assembleDebug`·`lintDebug` 성공 및 AAPT로 APK의 label·icon·adaptive foreground/background/monochrome 리소스를 확인했다. 연결된 단일 실기기에 `adb install -r`로 설치했으며 패키지 installed=true, stopped=true, notLaunched=true를 확인했다. 앱 실행·화면 조작·기기 설정 변경·데이터 삭제는 하지 않았다.
