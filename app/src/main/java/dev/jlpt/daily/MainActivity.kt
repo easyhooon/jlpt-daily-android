@@ -17,7 +17,11 @@ import kotlinx.serialization.Serializable
 import soil.query.annotation.ExperimentalSoilQueryApi
 import soil.query.compose.*
 
-@Serializable data class StudyRoute(val tab: String = "오늘", val questionId: String? = null, val review: Boolean = false, val token: String = "") : NavKey
+@Serializable data class StudyRoute(
+    val tab: String = "오늘", val questionId: String? = null,
+    val review: Boolean = false, val token: String = "",
+    val showLesson: Boolean = false, val returning: Boolean = false,
+) : NavKey
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,13 +41,20 @@ class MainActivity : ComponentActivity() {
     val date = currentStudyDate()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    NavDisplay(backStack = stack, onBack = { if(stack.size > 1) stack.removeLastOrNull() }, entryProvider = entryProvider {
+    NavDisplay(backStack = stack,
+        entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
+        onBack = { if(stack.size > 1) stack.removeLastOrNull() }, entryProvider = entryProvider {
         entry<StudyRoute> { route ->
             val question = QuestionBank.all.find { it.id == route.questionId }
             val answer = if (route.review) attempts.find { it.key == "review:$date:${question?.id}:${route.token}" } ?: presenter.submitted?.takeIf { it.date == date.toString() && it.questionId == question?.id } else attempts.find { it.date == date.toString() && it.questionId == question?.id && !it.review }
-            val state = StudyUiState(date.toString(), route.tab, attempts, QuestionBank.daily(date, attempts), graph.store.pending(attempts), question, route.review, answer, presenter.busy || subscription.data == null, presenter.error ?: if(subscription.error != null) "저장 기록을 읽지 못했습니다. 앱을 다시 열어 주세요." else null)
+            val state = StudyUiState(date.toString(), route.tab, attempts, QuestionBank.daily(date, attempts), graph.store.pending(attempts), question, route.review, answer, presenter.busy || subscription.data == null, presenter.error ?: if(subscription.error != null) "저장 기록을 읽지 못했습니다. 앱을 다시 열어 주세요." else null, question?.let(LessonBank::forQuestion), route.showLesson)
             StudyScreen(state,
-                onOpen = { q, review -> if (subscription.data != null && !presenter.busy) { presenter.open(); stack.add(StudyRoute(route.tab, q.id, review, presenter.token)) } },
+                onOpen = { q, review -> if (subscription.data != null && !presenter.busy) { presenter.open(); stack.add(StudyRoute(route.tab, q.id, review, presenter.token, showLesson = true)) } },
+                onStartQuestion = {
+                    if (route.returning) stack.removeLastOrNull()
+                    else stack[stack.lastIndex] = route.copy(showLesson = false)
+                },
+                onReadLesson = { stack.add(route.copy(showLesson = true, returning = true)) },
                 onSubmit = submit@ { index ->
                     if (presenter.busy || question == null || answer != null) return@submit
                     presenter.busy = true

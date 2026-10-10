@@ -60,6 +60,8 @@ fun StudyScreen(
     onCopy: (Question, Attempt) -> Unit,
     onRetryReview: () -> Unit,
     onTab: (String) -> Unit,
+    onStartQuestion: () -> Unit,
+    onReadLesson: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     MaterialTheme(colorScheme = StudyColors) {
@@ -72,15 +74,22 @@ fun StudyScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("まいにち N3", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Text(if (question == null) "하루 한 걸음" else if (state.review) "오답 다시 풀기" else "오늘의 문제", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text(if (question == null) "짧게 읽고, 풀고, 다시 기억해요. 첫 13문항은 동작 검증용이에요." else "천천히 읽고 가장 알맞은 답을 골라 주세요.", style = MaterialTheme.typography.bodyMedium)
+                        Text(if (state.showLesson) "오늘 배울 내용" else if (question == null) "하루 한 걸음" else if (state.review) "오답 다시 풀기" else "배운 내용 확인하기", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Text(if (state.showLesson) "짧은 설명과 예문을 읽고 연결된 문제를 풀어요." else if (question == null) "설명부터 읽고, 관련 문제로 확인해요. 처음은 13개 학습 내용으로 시작해요." else "필요하면 학습 설명을 다시 읽어도 괜찮아요.", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 state.error?.let { error -> item { Text(error, color = MaterialTheme.colorScheme.error) } }
                 if (question != null) {
                     item { TextButton(onClick = onClose) { Text("← 목록으로") } }
                     item {
-                        QuestionDetail(question, state.answer, state.busy, onSubmit, onCopy, onRetryReview, state.review, Modifier.fillMaxWidth())
+                        if (state.showLesson && state.lesson != null) {
+                            LessonDetail(state.lesson, state.busy, state.answer != null, onStartQuestion)
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                TextButton(onClick = onReadLesson) { Text("학습 설명 다시 보기") }
+                                QuestionDetail(question, state.answer, state.busy, onSubmit, onCopy, onRetryReview, state.review, Modifier.fillMaxWidth())
+                            }
+                        }
                     }
                 } else {
                     item {
@@ -124,7 +133,8 @@ fun StudyScreen(
                                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                         Text(state.date, style = MaterialTheme.typography.labelLarge)
-                                        Text("오늘도 5분, 일본어에 가까이", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Text("설명 한 조각, 문제 한 걸음", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Text("문법 최대 3개 · 독해 1개를 짧게 배우고 확인해요.")
                                         Text("문법과 짧은 독해 ${state.daily.size}문제 · $completed/${state.daily.size} 완료")
                                         LinearProgressIndicator(progress = { if (state.daily.isEmpty()) 0f else completed.toFloat() / state.daily.size }, modifier = Modifier.fillMaxWidth())
                                         if (state.daily.isNotEmpty() && completed == state.daily.size) Text("오늘 학습 완료! 오답을 한 번 더 살펴보세요.", fontWeight = FontWeight.SemiBold)
@@ -136,7 +146,7 @@ fun StudyScreen(
                                 else EmptyCard("새 문제를 모두 풀었어요", "검수한 다음 문제 묶음을 추가하기 전까지 오답과 기록에서 복습할 수 있어요.")
                             }
                             items(state.daily, key = { it.id }) { q ->
-                                QuestionCard(q, if (q.id in completedIds) "결과 보기" else "풀기", { onOpen(q, false) }, Modifier.fillMaxWidth())
+                                LessonCard(LessonBank.forQuestion(q), if (q.id in completedIds) "내용·결과 다시 보기" else "설명 읽고 풀기", { onOpen(q, false) })
                             }
                         }
                     }

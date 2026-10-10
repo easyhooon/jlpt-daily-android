@@ -2,6 +2,7 @@ package dev.jlpt.daily
 
 data class Question(
     val id: String,
+    val lessonId: String,
     val kind: String,
     val title: String,
     val passage: String = "",

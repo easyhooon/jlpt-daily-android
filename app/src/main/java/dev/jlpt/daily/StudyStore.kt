@@ -86,6 +86,8 @@ class StudyStore(
             appendLine("자체 제작 연습 문제이며 공식 기출문제가 아닙니다.")
             appendLine()
             appendLine("문제 ID: ${question.id} · 콘텐츠 v${QuestionBank.contentVersion}")
+            appendLine("학습 ID: ${question.lessonId}")
+            appendLine("학습 목표: ${LessonBank.forQuestion(question).goal}")
             appendLine("문제: ${question.title}")
             question.passage.takeIf { it.isNotBlank() }?.let { appendLine("지문:\n$it") }
             appendLine(question.prompt)

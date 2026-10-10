@@ -2,6 +2,7 @@ package dev.jlpt.daily
 
 import android.app.Application
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
@@ -119,5 +120,40 @@ class StudyStoreTest {
         } catch (_: IllegalArgumentException) {
             assertTrue(database.dao().all().isEmpty())
         }
+    }
+
+    @Test fun preLessonVersionOneDatabasePreservesOldAnswersAndSupportsLessons() = runBlocking {
+        // Schema and Room identity captured from the original MVP before lessons were added.
+        database.close()
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath("study.db"), null).use { old ->
+            old.execSQL("CREATE TABLE attempts (`key` TEXT NOT NULL, `date` TEXT NOT NULL, `questionId` TEXT NOT NULL, `selectedIndex` INTEGER NOT NULL, `correct` INTEGER NOT NULL, `review` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`key`))")
+            old.execSQL("CREATE TABLE room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT)")
+            old.execSQL("INSERT INTO room_master_table VALUES (42, 'f80fa3df27d33f0c40b9d25a94723255')")
+            old.execSQL("INSERT INTO attempts VALUES (?, ?, ?, ?, ?, ?, ?)",
+                arrayOf<Any>("daily:2026-10-09:g01", "2026-10-09", "g01", 0, 0, 0, 1L))
+            old.execSQL("INSERT INTO attempts VALUES (?, ?, ?, ?, ?, ?, ?)",
+                arrayOf<Any>("daily:2026-10-09:r01", "2026-10-09", "r01", 3, 1, 0, 2L))
+            old.version = 1
+        }
+        database = StudyDatabase.open(context)
+        store = StudyStore(database.dao())
+        val restored = database.dao().observe().first()
+        assertEquals(listOf(
+            Attempt("daily:2026-10-09:g01", "2026-10-09", "g01", 0, false, false, 1L),
+            Attempt("daily:2026-10-09:r01", "2026-10-09", "r01", 3, true, false, 2L),
+        ), restored)
+        val grammar = QuestionBank.all.single { it.id == "g01" }
+        assertEquals(listOf(grammar), store.pending(restored))
+        assertFalse(store.answer(today.minusDays(1), grammar, grammar.correctIndex))
+        assertTrue(QuestionBank.daily(today, restored).none { it.id in setOf("g01", "r01") })
+        val lesson = LessonBank.forQuestion(grammar)
+        val text = store.copyText(grammar, restored.first())
+        assertTrue(text.contains(lesson.id))
+        assertTrue(text.contains(lesson.goal))
+        assertTrue(text.contains("내 답: 1. ${grammar.options[0]}"))
+        assertTrue(text.contains("정답: 2. ${grammar.options[1]}"))
+        assertTrue(store.answer(today, grammar, grammar.correctIndex, review = true, reviewToken = "legacy"))
+        assertTrue(store.pending(database.dao().all()).isEmpty())
+        assertEquals(3, database.dao().all().size)
     }
 }

@@ -10,7 +10,8 @@ import kotlinx.coroutines.launch
 data class StudyUiState(
     val date: String, val tab: String, val attempts: List<Attempt>,
     val daily: List<Question>, val pending: List<Question>, val question: Question?,
-    val review: Boolean, val answer: Attempt?, val busy: Boolean, val error: String?
+    val review: Boolean, val answer: Attempt?, val busy: Boolean, val error: String?,
+    val lesson: Lesson? = null, val showLesson: Boolean = false,
 )
 class StudyPresenter {
     var busy by mutableStateOf(false)
